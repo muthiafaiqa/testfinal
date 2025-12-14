@@ -68,10 +68,7 @@ if menu == "🏠 Home":
     st.markdown("<div class='card'>Aplikasi Data Mining berbasis Machine Learning.</div>", unsafe_allow_html=True)
 
 # ==================================================
-# REGRESI (PREDIKSI HARGA) - FIX FINAL 100% AMAN
-# ==================================================
-# ==================================================
-# REGRESI (PREDIKSI HARGA) - FIX FINAL 100% (CASE SENSITIVITY)
+# REGRESI (PREDIKSI HARGA) - FIX FINAL 100%
 # ==================================================
 elif menu == "💰 Prediksi Harga":
     st.title("💰 Prediksi Total Harga")
@@ -81,36 +78,37 @@ elif menu == "💰 Prediksi Harga":
         qty = st.number_input("Jumlah Barang", min_value=1, value=5)
         harga = st.number_input("Harga Satuan (Rp)", min_value=1000, value=50000, step=1000)
     with col2:
-        # PENTING: Pilihan kategori bisa tetap menggunakan format mudah dibaca (dengan Spasi)
-        kategori_opsi = ["Alat", "Bahan Logam dan PVC", "Cat", "Material Konstruksi"] 
+        # PENTING: Daftar ini harus 100% mencerminkan opsi di fitur model
+        kategori_opsi = ["Alat", "Bahan_Logam_dan_PVC", "Cat", "Material_Konstruksi"] 
         kategori_pilihan = st.selectbox("Kategori", kategori_opsi)
 
     if st.button("HITUNG"):
         
-        # 1. Bersihkan Nama Kategori dan KONVERSI KE HURUF KECIL
-        kategori_bersih_final = kategori_pilihan.replace(" ", "_").lower() # <--- INI KUNCI UTAMA
-        
-        # 2. Buat Template DataFrame
+        # 1. Bersihkan Nama Kategori
+        kategori_bersih = kategori_pilihan.replace(" ", "_")
+
+        # 2. Buat Template DataFrame: AMAN DARI FEATURE MISMATCH
+        # Kita membuat dictionary yang berisi SEMUA fitur yang dibutuhkan model dengan nilai 0
         input_dict = {col: [0] for col in feature_columns}
 
-        # 3. Masukkan Nilai Numerik (Nama kolom juga diubah ke lowercase jika perlu)
+        # 3. Masukkan Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
         try:
-            # Asumsi: Nama kolom di PKL adalah HARGA_SATUAN (lowercase dan underscore)
-            input_dict["harga_satuan"] = [harga]
-            input_dict["kuantitas"] = [qty]
+            input_dict["Harga_Satuan"] = [harga] 
+            input_dict["Kuantitas"] = [qty]
             
-            # 4. Aktifkan Kolom Kategori (Menggunakan format yang sudah bersih dan lowercase)
-            kolom_kategori_aktif = f"kategori_{kategori_bersih_final}"
-
+            # 4. Aktifkan Kolom Kategori
+            kolom_kategori_aktif = f"Kategori_{kategori_bersih}"
+            
+            # Cek keamanan: Hanya aktifkan jika kolomnya benar-benar ada di memori model
             if kolom_kategori_aktif in feature_columns:
                 input_dict[kolom_kategori_aktif] = [1]
             else:
-                st.error(f"Error: Kategori '{kolom_kategori_aktif}' tidak ada dalam model. Cek PKL.")
-                st.stop()
+                st.error(f"Error: Kategori '{kolom_kategori_aktif}' tidak ada dalam model. Cek konsistensi nama.")
+                st.stop() # Hentikan proses jika kategori salah
 
             # 5. Buat DataFrame Input DENGAN URUTAN YANG BENAR
             input_df = pd.DataFrame(input_dict)
-            input_df = input_df[feature_columns]
+            input_df = input_df[feature_columns] # WAJIB: Memastikan urutan kolomnya sama persis!
 
             # 6. Prediksi
             pred = model.predict(input_df)[0]
@@ -120,7 +118,6 @@ elif menu == "💰 Prediksi Harga":
         except Exception as e:
             st.error("Terjadi kesalahan teknis yang parah pada prediksi.")
             st.code(f"Error detail: {e}")
-
 # ==================================================
 # CLUSTERING (SEGMENTASI) - Menggunakan UNDERSCORE
 # ==================================================
@@ -145,6 +142,7 @@ elif menu == "📊 Segmentasi Pelanggan":
     st.pyplot(fig)
 
     st.dataframe(df_cluster.head(), use_container_width=True)
+
 
 
 
