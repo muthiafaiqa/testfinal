@@ -70,47 +70,66 @@ if menu == "🏠 Home":
 # ==================================================
 # REGRESI (PREDIKSI HARGA) - Menggunakan UNDERSCORE
 # ==================================================
+# ==================================================
+# REGRESI (PREDIKSI HARGA) - FIX FINAL 100% AMAN
+# ==================================================
 elif menu == "💰 Prediksi Harga":
     st.title("💰 Prediksi Total Harga")
 
     col1, col2 = st.columns(2)
     with col1:
         qty = st.number_input("Jumlah Barang", min_value=1, value=5)
+        # WAJIB: Pastikan nama kolom numerik yang dikirim 100% cocok dengan PKL
         harga = st.number_input("Harga Satuan (Rp)", min_value=1000, value=50000, step=1000)
     with col2:
-        # PENTING: Daftar ini harus 100% mencerminkan opsi di fitur model
-        kategori_opsi = ["Alat", "Bahan_Logam_dan_PVC", "Cat", "Material_Konstruksi"] 
+        # PENTING: Pilihan kategori harus menggunakan format yang mudah dibaca (dengan spasi)
+        kategori_opsi = ["Alat", "Bahan Logam dan PVC", "Cat", "Material Konstruksi"] 
         kategori_pilihan = st.selectbox("Kategori", kategori_opsi)
 
     if st.button("HITUNG"):
         
-        # 1. Bersihkan Nama Kategori
-        kategori_bersih = kategori_pilihan.replace(" ", "_")
-
-        # 2. Buat Template DataFrame: AMAN DARI FEATURE MISMATCH
-        # Kita membuat dictionary yang berisi SEMUA fitur yang dibutuhkan model dengan nilai 0
+        # 1. Buat Template DataFrame (SEMUA FITUR DIISI 0)
         input_dict = {col: [0] for col in feature_columns}
 
-        # 3. Masukkan Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
+        # 2. Masukkan Nilai Numerik
         try:
-            input_dict["Harga_Satuan"] = [harga] 
+            # Cari nama kolom numerik yang benar-benar ada di PKL: Harga_Satuan atau Harga Satuan?
+            if "Harga_Satuan" in feature_columns:
+                 input_dict["Harga_Satuan"] = [harga]
+            elif "Harga Satuan" in feature_columns: # Jaga-jaga jika PKL masih menyimpan spasi
+                 input_dict["Harga Satuan"] = [harga]
+            
             input_dict["Kuantitas"] = [qty]
-            
-            # 4. Aktifkan Kolom Kategori
-            kolom_kategori_aktif = f"Kategori_{kategori_bersih}"
-            
-            # Cek keamanan: Hanya aktifkan jika kolomnya benar-benar ada di memori model
-            if kolom_kategori_aktif in feature_columns:
-                input_dict[kolom_kategori_aktif] = [1]
-            else:
-                st.error(f"Error: Kategori '{kolom_kategori_aktif}' tidak ada dalam model. Cek konsistensi nama.")
-                st.stop() # Hentikan proses jika kategori salah
 
-            # 5. Buat DataFrame Input DENGAN URUTAN YANG BENAR
+            # 3. AKTIFKAN KOLOM KATEGORI (Bagian paling rawan error)
+            
+            # Coba format yang bersih: Kategori_Bahan_Logam_dan_PVC
+            nama_bersih = f"Kategori_{kategori_pilihan.replace(' ', '_')}"
+            
+            # Coba format yang kotor (asli): Kategori_Bahan Logam dan PVC
+            nama_kotor = f"Kategori_{kategori_pilihan}"
+            
+            kolom_aktif = None
+            
+            # Cari nama yang benar-benar ada di daftar fitur model (feature_columns)
+            if nama_bersih in feature_columns:
+                kolom_aktif = nama_bersih
+            elif nama_kotor in feature_columns:
+                kolom_aktif = nama_kotor
+            
+            # Aktifkan kolom yang ditemukan
+            if kolom_aktif:
+                input_dict[kolom_aktif] = [1]
+            else:
+                st.error(f"Error: Tidak ada kolom kategori yang cocok di model. Cek nama fitur di PKL.")
+                st.stop() # Hentikan proses jika kategori tidak ditemukan
+
+
+            # 4. Buat DataFrame Input DENGAN URUTAN YANG BENAR
             input_df = pd.DataFrame(input_dict)
             input_df = input_df[feature_columns] # WAJIB: Memastikan urutan kolomnya sama persis!
 
-            # 6. Prediksi
+            # 5. Prediksi
             pred = model.predict(input_df)[0]
             st.success(f"💵 Estimasi Total: Rp {pred:,.0f} (Menggunakan Random Forest)")
             st.balloons()
@@ -143,5 +162,6 @@ elif menu == "📊 Segmentasi Pelanggan":
     st.pyplot(fig)
 
     st.dataframe(df_cluster.head(), use_container_width=True)
+
 
 
