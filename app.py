@@ -78,34 +78,45 @@ elif menu == "💰 Prediksi Harga":
         qty = st.number_input("Jumlah Barang", min_value=1, value=5)
         harga = st.number_input("Harga Satuan (Rp)", min_value=1000, value=50000, step=1000)
     with col2:
-        # PERBAIKAN: Ganti daftar kategori agar namanya lebih sederhana dan pasti ada di model
-        kategori = st.selectbox("Kategori", ["Alat", "Bahan_Logam_dan_PVC", "Cat", "Material_Konstruksi"]) 
-        # Kita pakai underscore agar formatnya 100% cocok dengan OHE yang sudah dibersihkan.
+        # PENTING: Daftar ini harus 100% mencerminkan opsi di fitur model
+        kategori_opsi = ["Alat", "Bahan_Logam_dan_PVC", "Cat", "Material_Konstruksi"] 
+        kategori_pilihan = st.selectbox("Kategori", kategori_opsi)
 
     if st.button("HITUNG"):
-        # ... (Logika Prediksi tidak perlu diubah, karena kita sudah membersihkan spasi)
         
-        # 1. Bersihkan Nama Kategori yang Dipilih User
-        kategori_bersih = kategori.replace(" ", "_") # <-- tetap pakai ini sebagai pencegahan
+        # 1. Bersihkan Nama Kategori
+        kategori_bersih = kategori_pilihan.replace(" ", "_")
 
-        # 2. Buat Template DataFrame
-        input_df = pd.DataFrame(0, index=[0], columns=feature_columns)
-        
-        # 3. Isi Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
+        # 2. Buat Template DataFrame: AMAN DARI FEATURE MISMATCH
+        # Kita membuat dictionary yang berisi SEMUA fitur yang dibutuhkan model dengan nilai 0
+        input_dict = {col: [0] for col in feature_columns}
+
+        # 3. Masukkan Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
         try:
-            input_df["Harga_Satuan"] = harga
-            input_df["Kuantitas"] = qty
+            input_dict["Harga_Satuan"] = [harga] 
+            input_dict["Kuantitas"] = [qty]
             
             # 4. Aktifkan Kolom Kategori
-            input_df[f"Kategori_{kategori_bersih}"] = 1 
+            kolom_kategori_aktif = f"Kategori_{kategori_bersih}"
             
-            # 5. Prediksi
+            # Cek keamanan: Hanya aktifkan jika kolomnya benar-benar ada di memori model
+            if kolom_kategori_aktif in feature_columns:
+                input_dict[kolom_kategori_aktif] = [1]
+            else:
+                st.error(f"Error: Kategori '{kolom_kategori_aktif}' tidak ada dalam model. Cek konsistensi nama.")
+                st.stop() # Hentikan proses jika kategori salah
+
+            # 5. Buat DataFrame Input DENGAN URUTAN YANG BENAR
+            input_df = pd.DataFrame(input_dict)
+            input_df = input_df[feature_columns] # WAJIB: Memastikan urutan kolomnya sama persis!
+
+            # 6. Prediksi
             pred = model.predict(input_df)[0]
-            st.success(f"💵 Estimasi Total: Rp {pred:,.0f}")
+            st.success(f"💵 Estimasi Total: Rp {pred:,.0f} (Menggunakan Random Forest)")
             st.balloons()
             
         except Exception as e:
-            st.error("Terjadi kesalahan teknis pada prediksi.")
+            st.error("Terjadi kesalahan teknis yang parah pada prediksi.")
             st.code(f"Error detail: {e}")
 
 # ==================================================
@@ -132,4 +143,5 @@ elif menu == "📊 Segmentasi Pelanggan":
     st.pyplot(fig)
 
     st.dataframe(df_cluster.head(), use_container_width=True)
+
 
