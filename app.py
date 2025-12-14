@@ -78,23 +78,27 @@ elif menu == "💰 Prediksi Harga":
         qty = st.number_input("Jumlah Barang", min_value=1, value=5)
         harga = st.number_input("Harga Satuan (Rp)", min_value=1000, value=50000, step=1000)
     with col2:
-        kategori = st.selectbox("Kategori", ["Alat", "Bahan Logam dan PVC", "Cat", "Material Konstruksi"])
+        # PERBAIKAN: Ganti daftar kategori agar namanya lebih sederhana dan pasti ada di model
+        kategori = st.selectbox("Kategori", ["Alat", "Bahan_Logam_dan_PVC", "Cat", "Material_Konstruksi"]) 
+        # Kita pakai underscore agar formatnya 100% cocok dengan OHE yang sudah dibersihkan.
 
     if st.button("HITUNG"):
+        # ... (Logika Prediksi tidak perlu diubah, karena kita sudah membersihkan spasi)
+        
         # 1. Bersihkan Nama Kategori yang Dipilih User
-        kategori_bersih = kategori.replace(" ", "_")
+        kategori_bersih = kategori.replace(" ", "_") # <-- tetap pakai ini sebagai pencegahan
 
-        # 2. Buat Template DataFrame sesuai struktur model (feature_columns)
+        # 2. Buat Template DataFrame
         input_df = pd.DataFrame(0, index=[0], columns=feature_columns)
         
-        # 3. Masukkan Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
+        # 3. Isi Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
         try:
-            input_df["Harga_Satuan"] = harga   # <--- WAJIB UNDERSCORE
+            input_df["Harga_Satuan"] = harga
             input_df["Kuantitas"] = qty
             
-            # 4. Aktifkan Kolom Kategori (One-Hot Encoding)
-            input_df[f"Kategori_{kategori_bersih}"] = 1 # Nama Kolom JADI COCOK!
-
+            # 4. Aktifkan Kolom Kategori
+            input_df[f"Kategori_{kategori_bersih}"] = 1 
+            
             # 5. Prediksi
             pred = model.predict(input_df)[0]
             st.success(f"💵 Estimasi Total: Rp {pred:,.0f}")
@@ -128,3 +132,4 @@ elif menu == "📊 Segmentasi Pelanggan":
     st.pyplot(fig)
 
     st.dataframe(df_cluster.head(), use_container_width=True)
+
