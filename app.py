@@ -9,35 +9,17 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 # ==================================================
-# KONFIGURASI HALAMAN
+# KONFIGURASI HALAMAN & CSS
 # ==================================================
-st.set_page_config(
-    page_title="Sistem Cerdas Toko Bangunan",
-    page_icon="🏗️",
-    layout="wide"
-)
-
-# ==================================================
-# CSS
-# ==================================================
+st.set_page_config(page_title="Sistem Cerdas Toko Bangunan", page_icon="🏗️", layout="wide")
 st.markdown("""
 <style>
+/* CSS Styling */
 [data-testid="stSidebar"] { background-color: #2c3e50; }
 [data-testid="stSidebar"] * { color: white !important; }
 h1 { color: #e67e22; font-weight: 800; text-align: center; }
-.card {
-    background: white;
-    padding: 25px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-}
-.stButton>button {
-    background: linear-gradient(135deg, #e67e22, #d35400);
-    color: white;
-    font-weight: bold;
-    width: 100%;
-    border-radius: 12px;
-}
+.card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+.stButton>button { background: linear-gradient(135deg, #e67e22, #d35400); color: white; font-weight: bold; width: 100%; border-radius: 12px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -45,6 +27,7 @@ h1 { color: #e67e22; font-weight: 800; text-align: center; }
 # PATH AMAN (CLOUD SAFE)
 # ==================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Nama file CSV yang sudah dibersihkan (semua spasi diganti _)
 DATA_PATH = os.path.join(BASE_DIR, "TRANSAKSI_PENJUALAN_PRODUK_TOKO_BANGUNAN_SYNTHETIC.csv")
 MODEL_PATH = os.path.join(BASE_DIR, "model_rf_harga.pkl")
 
@@ -53,24 +36,29 @@ MODEL_PATH = os.path.join(BASE_DIR, "model_rf_harga.pkl")
 # ==================================================
 @st.cache_data
 def load_data():
-    return pd.read_csv(DATA_PATH)
+    # MEMBACA DATA DAN MEMBERSIHKAN SPASI DI NAMA KOLOM
+    df = pd.read_csv(DATA_PATH)
+    df.columns = df.columns.str.replace(' ', '_')
+    return df
 
 @st.cache_resource
 def load_model():
+    # MEMUAT MODEL DAN DAFTAR FITUR BERSIH
     model, features = joblib.load(MODEL_PATH)
     return model, features
 
 df = load_data()
 model, feature_columns = load_model()
 
+if df is None or model is None:
+    st.error("⚠️ Aplikasi berhenti karena file model/data tidak ditemukan.")
+    st.stop()
+
 # ==================================================
 # SIDEBAR
 # ==================================================
 st.sidebar.title("🏗️ Navigasi")
-menu = st.sidebar.radio(
-    "Menu",
-    ["🏠 Home", "💰 Prediksi Harga", "📊 Segmentasi Pelanggan"]
-)
+menu = st.sidebar.radio("Menu", ["🏠 Home", "💰 Prediksi Harga", "📊 Segmentasi Pelanggan"])
 
 # ==================================================
 # HOME
@@ -80,10 +68,7 @@ if menu == "🏠 Home":
     st.markdown("<div class='card'>Aplikasi Data Mining berbasis Machine Learning.</div>", unsafe_allow_html=True)
 
 # ==================================================
-# REGRESI (FINAL FIX)
-# ==================================================
-# ==================================================
-# REGRESI (PREDIKSI HARGA) - FIX FINAL
+# REGRESI (PREDIKSI HARGA) - Menggunakan UNDERSCORE
 # ==================================================
 elif menu == "💰 Prediksi Harga":
     st.title("💰 Prediksi Total Harga")
@@ -96,77 +81,50 @@ elif menu == "💰 Prediksi Harga":
         kategori = st.selectbox("Kategori", ["Alat", "Bahan Logam dan PVC", "Cat", "Material Konstruksi"])
 
     if st.button("HITUNG"):
+        # 1. Bersihkan Nama Kategori yang Dipilih User
+        kategori_bersih = kategori.replace(" ", "_")
+
+        # 2. Buat Template DataFrame sesuai struktur model (feature_columns)
+        input_df = pd.DataFrame(0, index=[0], columns=feature_columns)
         
-        # 1. TEMUKAN NAMA KOLOM ASLI (dilihat dari file PKL)
-        # Kita buat kamus (dictionary) dari list fitur yang ada di model
-        feature_dict = {col: 0 for col in feature_columns}
-        
-        # 2. Masukkan Nilai User ke Kolom yang Benar
+        # 3. Masukkan Nilai User ke Kolom yang Sudah Diberi UNDERSCORE
         try:
-            # Menggunakan NAMA KOLOM YANG KITA PERKIRAKAN PALING BENAR (DENGAN SPASI ATAU TANPA)
-            feature_dict["Harga Satuan"] = harga # Asumsi nama kolom yang benar adalah DENGAN SPASI
-            feature_dict["Kuantitas"] = qty
+            input_df["Harga_Satuan"] = harga   # <--- WAJIB UNDERSCORE
+            input_df["Kuantitas"] = qty
             
-            # 3. Aktifkan Kolom Kategori: Kita cek format yang benar
-            # Cek 2 format: dengan spasi dan tanpa spasi, karena kita tidak yakin
-            
-            # Cari nama kolom Kategori yang cocok di list feature_columns
-            kolom_kategori_bersih = f"Kategori_{kategori.replace(' ', '_')}"
-            kolom_kategori_lama = f"Kategori_{kategori}"
+            # 4. Aktifkan Kolom Kategori (One-Hot Encoding)
+            input_df[f"Kategori_{kategori_bersih}"] = 1 # Nama Kolom JADI COCOK!
 
-            if kolom_kategori_bersih in feature_columns:
-                 feature_dict[kolom_kategori_bersih] = 1
-            elif kolom_kategori_lama in feature_columns:
-                 feature_dict[kolom_kategori_lama] = 1
-            else:
-                st.error("Error: Nama kolom kategori tidak ditemukan.")
-                st.stop()
-
-
-            # 4. Buat DataFrame Input
-            input_df = pd.DataFrame([feature_dict])
-            
-            # 5. Susun Ulang Kolom agar URUTANNYA SAMA PERSIS dengan model
-            input_df = input_df[feature_columns] 
-
-            # 6. Prediksi
+            # 5. Prediksi
             pred = model.predict(input_df)[0]
             st.success(f"💵 Estimasi Total: Rp {pred:,.0f}")
             st.balloons()
             
         except Exception as e:
-            st.error("Error saat Prediksi (Feature Mismatch Final).")
+            st.error("Terjadi kesalahan teknis pada prediksi.")
             st.code(f"Error detail: {e}")
 
 # ==================================================
-# CLUSTERING
+# CLUSTERING (SEGMENTASI) - Menggunakan UNDERSCORE
 # ==================================================
 elif menu == "📊 Segmentasi Pelanggan":
     st.title("👥 Segmentasi Pelanggan")
 
     k = st.slider("Jumlah Cluster", 2, 5, 3)
 
-    df_cluster = df.groupby("ID Transaksi").agg({
-        "Total Harga": "sum",
-        "Kuantitas": "sum"
-    }).reset_index()
+    # Proses Clustering menggunakan nama kolom yang sudah bersih
+    df_cluster = df.groupby("ID_Transaksi").agg({"Total_Harga": "sum", "Kuantitas": "sum"}).reset_index() 
 
     scaler = StandardScaler()
-    scaled = scaler.fit_transform(df_cluster[["Total Harga", "Kuantitas"]])
+    scaled = scaler.fit_transform(df_cluster[["Total_Harga", "Kuantitas"]])
 
     kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
     df_cluster["Cluster"] = kmeans.fit_predict(scaled)
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.scatterplot(
-        data=df_cluster,
-        x="Total Harga",
-        y="Kuantitas",
-        hue="Cluster",
-        palette="viridis",
-        s=120,
-        ax=ax
-    )
+    sns.scatterplot(data=df_cluster, x="Total_Harga", y="Kuantitas", hue="Cluster", palette="viridis", s=120, ax=ax)
+    plt.xlabel("Total Belanja (Rp)")
+    plt.ylabel("Kuantitas")
     st.pyplot(fig)
 
     st.dataframe(df_cluster.head(), use_container_width=True)
