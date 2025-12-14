@@ -80,7 +80,7 @@ if menu == "🏠 Home":
     st.markdown("<div class='card'>Aplikasi Data Mining berbasis Machine Learning.</div>", unsafe_allow_html=True)
 
 # ==================================================
-# REGRESI
+# REGRESI (FINAL FIX)
 # ==================================================
 elif menu == "💰 Prediksi Harga":
     st.title("💰 Prediksi Total Harga")
@@ -93,14 +93,32 @@ elif menu == "💰 Prediksi Harga":
         kategori = st.selectbox("Kategori", ["Alat", "Bahan Logam dan PVC", "Cat", "Material Konstruksi"])
 
     if st.button("HITUNG"):
-        input_df = pd.DataFrame(0, index=[0], columns=feature_columns)
-        input_df["Harga_Satuan"] = harga
-        input_df["Kuantitas"] = qty
-        input_df[f"Kategori_{kategori}"] = 1
+        
+        # 1. Bersihkan Nama Kategori yang Dipilih User
+        # Contoh: "Bahan Logam dan PVC" -> "Bahan_Logam_dan_PVC"
+        kategori_bersih = kategori.replace(" ", "_") # <-- INI KUNCI PERBAIKANNYA
 
-        pred = model.predict(input_df)[0]
-        st.success(f"💵 Estimasi Total: Rp {pred:,.0f}")
-        st.balloons()
+        # 2. Buat Template DataFrame
+        input_df = pd.DataFrame(0, index=[0], columns=feature_columns)
+        
+        # 3. Isi Nilai ke Kolom yang Sudah Diberi Underscore
+        # Kita pakai nama kolom yang sudah bersih (Harga_Satuan)
+        input_df["Harga_Satuan"] = harga  # Kolom dari training
+        input_df["Kuantitas"] = qty       # Kolom dari training
+        
+        # 4. Aktifkan Kolom Kategori (Menggunakan nama yang sudah bersih)
+        input_df[f"Kategori_{kategori_bersih}"] = 1 # ✅ Nama Kolom JADI COCOK!
+
+        # 5. Prediksi
+        try:
+            pred = model.predict(input_df)[0] # Baris ini sekarang aman
+            st.success(f"💵 Estimasi Total: Rp {pred:,.0f}")
+            st.balloons()
+        except Exception as e:
+            st.error("Terjadi kesalahan teknis yang parah pada prediksi.")
+            st.code(f"Error detail: {e}") 
+
+# ... (lanjutkan ke blok CLUSTERING)
 
 # ==================================================
 # CLUSTERING
