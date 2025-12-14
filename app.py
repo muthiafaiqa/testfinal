@@ -82,6 +82,9 @@ if menu == "🏠 Home":
 # ==================================================
 # REGRESI (FINAL FIX)
 # ==================================================
+# ==================================================
+# REGRESI (PREDIKSI HARGA) - FIX FINAL
+# ==================================================
 elif menu == "💰 Prediksi Harga":
     st.title("💰 Prediksi Total Harga")
 
@@ -94,31 +97,46 @@ elif menu == "💰 Prediksi Harga":
 
     if st.button("HITUNG"):
         
-        # 1. Bersihkan Nama Kategori yang Dipilih User
-        # Contoh: "Bahan Logam dan PVC" -> "Bahan_Logam_dan_PVC"
-        kategori_bersih = kategori.replace(" ", "_") # <-- INI KUNCI PERBAIKANNYA
-
-        # 2. Buat Template DataFrame
-        input_df = pd.DataFrame(0, index=[0], columns=feature_columns)
+        # 1. TEMUKAN NAMA KOLOM ASLI (dilihat dari file PKL)
+        # Kita buat kamus (dictionary) dari list fitur yang ada di model
+        feature_dict = {col: 0 for col in feature_columns}
         
-        # 3. Isi Nilai ke Kolom yang Sudah Diberi Underscore
-        # Kita pakai nama kolom yang sudah bersih (Harga_Satuan)
-        input_df["Harga_Satuan"] = harga  # Kolom dari training
-        input_df["Kuantitas"] = qty       # Kolom dari training
-        
-        # 4. Aktifkan Kolom Kategori (Menggunakan nama yang sudah bersih)
-        input_df[f"Kategori_{kategori_bersih}"] = 1 # ✅ Nama Kolom JADI COCOK!
-
-        # 5. Prediksi
+        # 2. Masukkan Nilai User ke Kolom yang Benar
         try:
-            pred = model.predict(input_df)[0] # Baris ini sekarang aman
+            # Menggunakan NAMA KOLOM YANG KITA PERKIRAKAN PALING BENAR (DENGAN SPASI ATAU TANPA)
+            feature_dict["Harga Satuan"] = harga # Asumsi nama kolom yang benar adalah DENGAN SPASI
+            feature_dict["Kuantitas"] = qty
+            
+            # 3. Aktifkan Kolom Kategori: Kita cek format yang benar
+            # Cek 2 format: dengan spasi dan tanpa spasi, karena kita tidak yakin
+            
+            # Cari nama kolom Kategori yang cocok di list feature_columns
+            kolom_kategori_bersih = f"Kategori_{kategori.replace(' ', '_')}"
+            kolom_kategori_lama = f"Kategori_{kategori}"
+
+            if kolom_kategori_bersih in feature_columns:
+                 feature_dict[kolom_kategori_bersih] = 1
+            elif kolom_kategori_lama in feature_columns:
+                 feature_dict[kolom_kategori_lama] = 1
+            else:
+                st.error("Error: Nama kolom kategori tidak ditemukan.")
+                st.stop()
+
+
+            # 4. Buat DataFrame Input
+            input_df = pd.DataFrame([feature_dict])
+            
+            # 5. Susun Ulang Kolom agar URUTANNYA SAMA PERSIS dengan model
+            input_df = input_df[feature_columns] 
+
+            # 6. Prediksi
+            pred = model.predict(input_df)[0]
             st.success(f"💵 Estimasi Total: Rp {pred:,.0f}")
             st.balloons()
+            
         except Exception as e:
-            st.error("Terjadi kesalahan teknis yang parah pada prediksi.")
-            st.code(f"Error detail: {e}") 
-
-# ... (lanjutkan ke blok CLUSTERING)
+            st.error("Error saat Prediksi (Feature Mismatch Final).")
+            st.code(f"Error detail: {e}")
 
 # ==================================================
 # CLUSTERING
